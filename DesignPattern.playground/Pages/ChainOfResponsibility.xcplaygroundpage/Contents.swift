@@ -171,6 +171,103 @@ class Query {
 }
 
 class Game {
+    let queries = Event<Query>()
     
+    func performQuery(_ q: Query) {
+        queries.raise(q)
+    }
 }
 
+class Creature1: CustomStringConvertible {
+    var name: String
+    
+    private let _attack, _defense: Int
+    private let game: Game
+    
+    init(name: String, _attack: Int, _defense: Int, game: Game) {
+        self.name = name
+        self._attack = _attack
+        self._defense = _defense
+        self.game = game
+    }
+    
+    var attack: Int {
+        let q = Query(creatureName: name, whatToQuery: .attack, value: _attack)
+        game.performQuery(q)
+        return q.value
+    }
+    
+    var defense: Int {
+        let q = Query(creatureName: name, whatToQuery: .defense, value: _defense)
+        game.performQuery(q)
+        return q.value
+    }
+    
+    var description: String {
+        return "\(name): \(attack)/\(defense)"
+    }
+}
+
+class CreatureModifier1: Disposable {
+    
+    
+    
+    let game: Game
+    let creature: Creature1
+    var event: Disposable? = nil
+    
+    init (game: Game, creature: Creature1) {
+        self.game = game
+        self.creature = creature
+        event = self.game.queries.addHandler(target: self, handler: CreatureModifier1.handle)
+    }
+    
+    func handle(_ q: Query) {
+        
+    }
+    
+    func dispose() {
+        event?.dispose()
+    }
+}
+
+
+class DoubleAttackModifier1: CreatureModifier1 {
+    override func handle(_ q: Query) {
+        if q.creatureName == creature.name, q.whatToQuery == .attack {
+            q.value *= 2
+        }
+    }
+}
+
+
+class IncreaseDefenseModifier1: CreatureModifier1 {
+    override func handle(_ q: Query) {
+        if q.creatureName == creature.name, q.whatToQuery == .defense {
+            q.value += 1
+        }
+    }
+}
+
+
+func main1() {
+    let game = Game()
+    let goblin = Creature1(name: "Goblin", _attack: 3, _defense: 3, game: game)
+    print("Baseline goblin: \(goblin)")
+    
+    let dam = DoubleAttackModifier1(game: game, creature: goblin)
+    print("Goblin with 2x attack: \(dam.creature)")
+    
+    
+    let idm = IncreaseDefenseModifier1(game: game, creature: goblin)
+    print("Goblin with 2x attack and 1x defense: \(idm.creature)")
+    
+    idm.dispose()
+    
+    print("Goblin is now \(goblin)")
+    
+    dam.dispose()
+    
+    print("Goblin is now \(goblin)")
+}
+main1()
